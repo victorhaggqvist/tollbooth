@@ -143,28 +143,3 @@ func SetResponseHeaders(limiter *config.Limiter, w http.ResponseWriter) {
 	w.Header().Add("X-Rate-Limit-Limit", strconv.FormatInt(limiter.Max, 10))
 	w.Header().Add("X-Rate-Limit-Duration", limiter.TTL.String())
 }
-
-// LimitHandler is a middleware that performs rate-limiting given http.Handler struct.
-func LimitHandler(limiter *config.Limiter, next http.Handler) http.Handler {
-	middle := func(w http.ResponseWriter, r *http.Request) {
-		SetResponseHeaders(limiter, w)
-
-		httpError := LimitByRequest(limiter, r)
-		if httpError != nil {
-			w.Header().Add("Content-Type", limiter.MessageContentType)
-			w.WriteHeader(httpError.StatusCode)
-			w.Write([]byte(httpError.Message))
-			return
-		}
-
-		// There's no rate-limit error, serve the next handler.
-		next.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(middle)
-}
-
-// LimitFuncHandler is a middleware that performs rate-limiting given request handler function.
-func LimitFuncHandler(limiter *config.Limiter, nextFunc func(http.ResponseWriter, *http.Request)) http.Handler {
-	return LimitHandler(limiter, http.HandlerFunc(nextFunc))
-}
